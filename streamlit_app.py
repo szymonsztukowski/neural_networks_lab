@@ -4,8 +4,8 @@ import os
 import tempfile
 from doc_loader import load_pdf
 from embedder_rag import create_index, retrieve_docs
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.schema import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
 st.set_page_config(layout="wide", page_title="Gemini chatbot app")
 st.title("Gemini chatbot app")

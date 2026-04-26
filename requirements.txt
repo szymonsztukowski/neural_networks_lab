@@ -4,3 +4,4 @@ PyMuPDF
 faiss-cpu
 langchain
 langchain-huggingface
+langchain-text-splitters
