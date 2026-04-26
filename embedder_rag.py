@@ -8,6 +8,7 @@ class FAISSIndex:
         self.metadata = metadata
 
     def similarity_search(self, query, k=3):
+        query = np.array([query]).astype("float32")
         D, I = self.index.search(query, k)
         results = []
         for idx in I[0]:
