@@ -1,6 +1,8 @@
 import streamlit as st
 from openai import OpenAI
 import os
+import tempfile
+from doc_loader import load_pdf
 
 st.set_page_config(layout="wide", page_title="Gemini chatbot app")
 st.title("Gemini chatbot app")
@@ -11,7 +13,7 @@ selected_model = "gemini-2.5-flash"
 # Sidebar for file upload
 with st.sidebar:
     st.header("Upload File")
-    uploaded_file = st.file_uploader("Choose a file", type=["txt", "md", "py", "json"])
+    uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?."}]
@@ -27,8 +29,15 @@ if prompt := st.chat_input():
     # Add file content if uploaded
     full_prompt = prompt
     if uploaded_file is not None:
-        file_content = uploaded_file.read().decode("utf-8")
-        full_prompt += f"\n\nFile content ({uploaded_file.name}):\n{file_content}"
+        # Save uploaded file to temporary location
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.read())
+            tmp_file_path = tmp_file.name
+        try:
+            file_content = load_pdf(tmp_file_path)
+            full_prompt += f"\n\nFile content ({uploaded_file.name}):\n{file_content}"
+        finally:
+            os.unlink(tmp_file_path)  # Clean up temp file
     
     client = OpenAI(api_key=api_key, base_url=base_url)
     st.session_state.messages.append({"role": "user", "content": full_prompt})
