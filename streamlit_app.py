@@ -55,14 +55,60 @@ if prompt := st.chat_input():
         context = "\n\n".join([doc["text"] for doc in relevant_docs])
         full_prompt = f"Context from documents:\n{context}\n\nQuestion: {prompt}"
     
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    # Build client (new-style OpenAI client when available)
+    try:
+        client = OpenAI(api_key=api_key, base_url=base_url)
+    except Exception:
+        client = None
+
     st.session_state.messages.append({"role": "user", "content": full_prompt})
     st.chat_message("user").write(prompt)  # Display original prompt
-    response = client.chat_completions.create(
-        model=selected_model,
-        messages=st.session_state.messages
-    )
 
-    msg = response.choices[0].message.content
+    response = None
+    # Try new OpenAI client patterns first, then fall back to legacy `openai` package
+    if client is not None:
+        try:
+            response = client.chat_completions.create(
+                model=selected_model,
+                messages=st.session_state.messages
+            )
+        except Exception:
+            try:
+                # alternative attribute name some versions expose
+                response = client.chat.completions.create(
+                    model=selected_model,
+                    messages=st.session_state.messages
+                )
+            except Exception:
+                response = None
+
+    if response is None:
+        # Fallback to the older `openai` package API
+        try:
+            import openai as old_openai
+            old_openai.api_key = api_key
+            if base_url:
+                old_openai.api_base = base_url
+            response = old_openai.ChatCompletion.create(
+                model=selected_model,
+                messages=st.session_state.messages
+            )
+        except Exception as e:
+            st.error(f"Failed to call chat completion API: {e}")
+            st.stop()
+
+    # Extract assistant message text robustly across client versions
+    msg = None
+    try:
+        msg = response.choices[0].message.content
+    except Exception:
+        try:
+            msg = response.choices[0].message["content"]
+        except Exception:
+            try:
+                msg = response.choices[0].text
+            except Exception:
+                msg = str(response)
+
     st.session_state.messages.append({"role": "assistant", "content": msg})
     st.chat_message("assistant").write(msg)
